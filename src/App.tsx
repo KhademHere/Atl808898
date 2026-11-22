@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { AmbientBackdrop } from './components/AmbientBackdrop';
 import { TopBar } from './components/TopBar';
 import { CompareSlider } from './components/CompareSlider';
 import { StyleCarousel } from './components/StyleCarousel';
@@ -343,7 +344,7 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen bg-[#F7F7F5] text-[#141413]"
+      className="relative min-h-screen text-[#141715]"
       onDragOver={(e) => {
         e.preventDefault();
         setIsDraggingFile(true);
@@ -355,6 +356,8 @@ export default function App() {
       }}
       onDrop={handleDropFile}
     >
+      <AmbientBackdrop />
+
       <input
         ref={fileInputRef}
         type="file"
@@ -367,32 +370,32 @@ export default function App() {
       <TopBar onTriggerUpload={triggerFilePicker} />
 
       {isDraggingFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#141413]/70 p-6 backdrop-blur-xs">
-          <div className="rounded-lg border border-dashed border-white/70 bg-[#141413]/90 px-10 py-8 text-center text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6 backdrop-blur-md">
+          <div className="rounded-[28px] border border-white/40 bg-[#141D18]/80 px-10 py-8 text-center text-white shadow-2xl backdrop-blur-xl">
             <p className="font-editorial text-3xl font-medium">Drop your room photo here</p>
-            <p className="mt-2 text-sm text-white/80">
+            <p className="mt-2 text-sm text-white/85">
               Supports JPG, PNG, and WebP photographs up to 12 MB
             </p>
           </div>
         </div>
       )}
 
-      <main className="mx-auto max-w-[1280px] space-y-10 px-5 py-6 sm:px-8 sm:py-7">
+      <main className="mx-auto max-w-[1280px] space-y-10 px-5 pb-8 pt-8 sm:px-8 sm:pt-9">
         {/* Studio Hero & Primary Focal Anchor: Interactive Before / After Visualizer */}
         <section id="studio" aria-labelledby="studio-heading" className="space-y-5">
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl space-y-1.5">
-              <p className="text-xs text-[#5C5C58]">
+              <p className="text-xs font-medium text-[#464D49]">
                 Interactive Architectural Makeover · Before &amp; After Visualization
               </p>
               <h1
                 id="studio-heading"
-                className="font-editorial text-[clamp(2rem,3.4vw,3rem)] leading-[1.08] font-medium tracking-tight text-[#141413] text-balance"
+                className="font-editorial text-[clamp(2rem,3.4vw,3rem)] leading-[1.08] font-medium tracking-tight text-[#141715] text-balance"
               >
                 Reimagine your room before moving a single chair.
               </h1>
             </div>
-            <p className="max-w-sm text-sm leading-relaxed text-[#5C5C58]">
+            <p className="max-w-sm text-sm leading-relaxed text-[#464D49]">
               Drag across the frame to compare your original space against curated interior styles, then refine every detail with your consultant below.
             </p>
           </div>
@@ -453,22 +456,22 @@ export default function App() {
         </div>
       </main>
 
-      <footer className="mt-16 border-t border-[#E2E2DE] bg-[#F7F7F5]">
-        <div className="mx-auto flex max-w-[1280px] flex-col items-start justify-between gap-4 px-5 py-8 text-xs text-[#5C5C58] sm:flex-row sm:items-center sm:px-8">
-          <span className="font-editorial text-lg font-semibold text-[#141413]">
+      <footer className="px-5 pb-8 pt-6 sm:px-8">
+        <div className="liquid-glass-dock mx-auto flex max-w-[1280px] flex-col items-start justify-between gap-4 rounded-[24px] px-6 py-5 text-xs text-[#464D49] sm:flex-row sm:items-center">
+          <span className="font-editorial text-lg font-semibold text-[#141715]">
             Atelier Room
           </span>
           <div className="flex flex-wrap items-center gap-6">
-            <a href="#studio" className="hover:text-[#141413] hover:underline underline-offset-4">
+            <a href="#studio" className="hover:text-[#141715] hover:underline underline-offset-4">
               Studio Visualizer
             </a>
-            <a href="#styles" className="hover:text-[#141413] hover:underline underline-offset-4">
+            <a href="#styles" className="hover:text-[#141715] hover:underline underline-offset-4">
               Style Library
             </a>
-            <a href="#consultation" className="hover:text-[#141413] hover:underline underline-offset-4">
+            <a href="#consultation" className="hover:text-[#141715] hover:underline underline-offset-4">
               Design Consultation
             </a>
-            <a href="#shoppable-index" className="hover:text-[#141413] hover:underline underline-offset-4">
+            <a href="#shoppable-index" className="hover:text-[#141715] hover:underline underline-offset-4">
               Shoppable Index
             </a>
           </div>
