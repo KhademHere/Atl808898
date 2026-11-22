@@ -1,0 +1,225 @@
+import React, { useEffect, useRef } from 'react';
+import { ArrowUpRight, Loader2, Send, Sparkles } from 'lucide-react';
+import type { ChatMessage } from '../types';
+import { SUGGESTED_CONSULTANT_PROMPTS } from '../data/styles';
+
+interface ConsultantChatProps {
+  messages: ChatMessage[];
+  activeStyleName: string;
+  inputValue: string;
+  onInputChange: (val: string) => void;
+  applyVisualEdit: boolean;
+  onToggleApplyVisualEdit: (val: boolean) => void;
+  isSending: boolean;
+  errorMessage?: string | null;
+  onSendMessage: (text: string) => void;
+}
+
+export function ConsultantChat({
+  messages,
+  activeStyleName,
+  inputValue,
+  onInputChange,
+  applyVisualEdit,
+  onToggleApplyVisualEdit,
+  isSending,
+  errorMessage,
+  onSendMessage,
+}: ConsultantChatProps) {
+  const logContainerRef = useRef<HTMLDivElement>(null);
+  const hasMountedRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTo({
+        top: logContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  }, [messages.length, isSending]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = inputValue.trim();
+    if (!trimmed || isSending) return;
+    onSendMessage(trimmed);
+  };
+
+  return (
+    <section
+      id="consultation"
+      aria-labelledby="consultation-heading"
+      className="flex h-full flex-col rounded-lg border border-[#E2E2DE] bg-white"
+    >
+      {/* Header */}
+      <div className="border-b border-[#E2E2DE] px-6 py-5">
+        <p className="text-xs text-[#5C5C58]">
+          Context-Aware Design Consultant · {activeStyleName}
+        </p>
+        <h2
+          id="consultation-heading"
+          className="mt-1 font-editorial text-2xl font-semibold text-[#141413]"
+        >
+          Refine Layout, Palette &amp; Sourcing
+        </h2>
+        <p className="mt-1 text-sm text-[#5C5C58]">
+          Ask for specific visual edits or request similar shoppable furniture and textiles tailored to your current room.
+        </p>
+      </div>
+
+      {/* Scrollable Multi-Turn Conversation Thread */}
+      <div
+        ref={logContainerRef}
+        role="log"
+        aria-live="polite"
+        aria-label="Design consultant conversation history"
+        className="atelier-scroll flex min-h-[280px] max-h-[420px] flex-1 flex-col gap-5 overflow-y-auto px-6 py-5"
+      >
+        {messages.map((msg) => {
+          const isUser = msg.role === 'user';
+          return (
+            <article
+              key={msg.id}
+              className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
+            >
+              <div className="mb-1 flex items-center gap-2 text-[11px] text-[#5C5C58]">
+                <span className="font-medium text-[#141413]">
+                  {isUser ? 'You' : 'Atelier Consultant'}
+                </span>
+                <span aria-hidden="true">·</span>
+                <span className="tabular-nums">{msg.timestamp}</span>
+              </div>
+
+              <div
+                className={`max-w-[92%] rounded-lg px-4 py-3 text-sm leading-relaxed ${
+                  isUser
+                    ? 'bg-[#1B4332] text-white'
+                    : 'border border-[#E2E2DE] bg-[#F7F7F5] text-[#141413]'
+                }`}
+              >
+                <div className="whitespace-pre-line">{msg.text}</div>
+
+                {msg.appliedVisualEdit && (
+                  <p className="mt-2.5 flex items-center gap-1.5 border-t border-[#E2E2DE] pt-2 text-xs font-medium text-[#1B4332]">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span>Updated the room visualization above with your requested refinement.</span>
+                  </p>
+                )}
+
+                {msg.visualEditNotice && (
+                  <p className="mt-2.5 border-t border-[#E2E2DE] pt-2 text-xs text-[#6E2D1A]">
+                    Visual preview note: {msg.visualEditNotice}
+                  </p>
+                )}
+
+                {msg.groundingSources && msg.groundingSources.length > 0 && (
+                  <div className="mt-3 border-t border-[#E2E2DE] pt-2.5">
+                    <p className="text-[11px] font-medium text-[#5C5C58]">
+                      Verified Web Sources
+                    </p>
+                    <ul className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+                      {msg.groundingSources.slice(0, 4).map((source) => (
+                        <li key={source.uri}>
+                          <a
+                            href={source.uri}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-[#1B4332] underline-offset-4 hover:underline"
+                          >
+                            <span className="max-w-[220px] truncate">{source.title}</span>
+                            <ArrowUpRight className="h-3 w-3 shrink-0" aria-hidden="true" />
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </article>
+          );
+        })}
+
+        {isSending && (
+          <div className="flex items-center gap-2.5 text-xs text-[#5C5C58]">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-[#1B4332]" aria-hidden="true" />
+            <span>Reviewing room layout, refining concept, and sourcing matching pieces...</span>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Refinement Prompts */}
+      <div className="border-t border-[#EFEFED] bg-[#FAFAF8] px-6 py-3">
+        <p className="mb-2 text-[11px] font-medium text-[#5C5C58]">Suggested Refinements</p>
+        <div className="flex flex-wrap gap-2">
+          {SUGGESTED_CONSULTANT_PROMPTS.map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              disabled={isSending}
+              onClick={() => onSendMessage(prompt)}
+              className="rounded-md border border-[#DCDCDA] bg-white px-3 py-1.5 text-left text-xs text-[#141413] transition-colors hover:border-[#1B4332] hover:text-[#1B4332] disabled:opacity-50 cursor-pointer"
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Input Form */}
+      <form onSubmit={handleSubmit} className="border-t border-[#E2E2DE] p-5 space-y-3">
+        {errorMessage && (
+          <div
+            role="alert"
+            className="rounded-md border border-[#D4B5A7] bg-[#FDF8F5] px-3.5 py-2 text-xs text-[#6E2D1A]"
+          >
+            {errorMessage}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-3">
+          <label
+            htmlFor="consultant-prompt-input"
+            className="text-xs font-medium text-[#141413]"
+          >
+            Ask your consultant or request a visual change
+          </label>
+
+          <label className="inline-flex items-center gap-2 text-xs text-[#5C5C58] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={applyVisualEdit}
+              onChange={(e) => onToggleApplyVisualEdit(e.target.checked)}
+              className="h-4 w-4 rounded border-[#C8C8C0] accent-[#1B4332]"
+            />
+            <span>Auto-render visual edits</span>
+          </label>
+        </div>
+
+        <div className="flex gap-2.5">
+          <input
+            id="consultant-prompt-input"
+            type="text"
+            value={inputValue}
+            onChange={(e) => onInputChange(e.target.value)}
+            disabled={isSending}
+            placeholder='e.g., "Keep this layout but make the rug blue and suggest similar wool rugs"'
+            className="min-h-[44px] flex-1 rounded-md border border-[#D4D4CE] bg-[#F7F7F5] px-4 py-2.5 text-sm text-[#141413] placeholder:text-[#787872] focus:border-[#1B4332] focus:bg-white focus:outline-none disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            disabled={isSending || !inputValue.trim()}
+            aria-label="Send design refinement message"
+            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-[#1B4332] px-5 py-2.5 text-xs font-medium text-white transition-colors hover:bg-[#143326] disabled:opacity-45 whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            <Send className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Send</span>
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}

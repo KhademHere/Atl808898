@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    scroll-behavior: smooth;
+    background-color: #F7F7F5;
+    color: #141413;
+  }
+
+  h1, h2, h3, .font-editorial {
+    font-family: var(--font-serif);
+  }
+}
+
+/* Custom hairline scrollbars for carousel & chat */
+.atelier-scroll::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.atelier-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.atelier-scroll::-webkit-scrollbar-thumb {
+  background: #D4D4CE;
+  border-radius: 3px;
+}
+
+.atelier-scroll::-webkit-scrollbar-thumb:hover {
+  background: #A8A8A0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

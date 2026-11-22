@@ -1,0 +1,6 @@
+{
+  "name": "Atelier Room — AI Interior Design Consultant",
+  "description": "Interactive interior design makeover studio with AI style reimagining, before-and-after comparison slider, context-aware refinement chat, and shoppable furniture sourcing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
