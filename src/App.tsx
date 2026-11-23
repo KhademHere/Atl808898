@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { AmbientBackdrop } from './components/AmbientBackdrop';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle2, Upload, X } from 'lucide-react';
 import { TopBar } from './components/TopBar';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { CompareSlider } from './components/CompareSlider';
 import { StyleCarousel } from './components/StyleCarousel';
 import { ConsultantChat } from './components/ConsultantChat';
@@ -37,6 +38,10 @@ function createInitialMessages(styleName: string): ChatMessage[] {
 
 export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const [activeSection, setActiveSection] = useState<string>('studio');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [originalRoom, setOriginalRoom] = useState<RoomAsset>(DEMO_ORIGINAL_ROOM);
   const [activeStyleId, setActiveStyleId] = useState<string>(DESIGN_STYLES[0].id);
@@ -65,6 +70,50 @@ export default function App() {
 
   const [isDraggingFile, setIsDraggingFile] = useState<boolean>(false);
 
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message);
+    if (toastTimerRef.current !== null) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage(null);
+      toastTimerRef.current = null;
+    }, 3600);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current !== null) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Track visible landmark section for desktop header & mobile bottom navigation highlights
+  useEffect(() => {
+    const ids = ['studio', 'styles', 'consultation', 'shoppable-index'];
+    const elements = ids
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => Boolean(el));
+
+    if (elements.length === 0 || typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible[0]?.target?.id) {
+          setActiveSection(visible[0].target.id);
+        }
+      },
+      { rootMargin: '-20% 0px -55% 0px', threshold: [0.1, 0.35, 0.6] }
+    );
+
+    elements.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
   const activeStyle = useMemo(
     () => DESIGN_STYLES.find((s) => s.id === activeStyleId) ?? DESIGN_STYLES[0],
     [activeStyleId]
@@ -82,43 +131,48 @@ export default function App() {
     fileInputRef.current?.click();
   }, []);
 
-  const ingestRoomFile = useCallback(async (file: File) => {
-    setVisualError(null);
-    const validation = validateUploadedImageFile({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-    });
-    if (!validation.valid) {
-      setVisualError(validation.error ?? 'Unsupported image file.');
-      return;
-    }
-
-    try {
-      const encoded = await fileToBase64(file);
-      const cleanName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
-      setOriginalRoom({
-        url: encoded.dataUrl,
-        base64: encoded.base64,
-        mimeType: encoded.mimeType,
-        label: cleanName || 'Uploaded Space',
-        isDemo: false,
+  const ingestRoomFile = useCallback(
+    async (file: File) => {
+      setVisualError(null);
+      const validation = validateUploadedImageFile({
+        name: file.name,
+        type: file.type,
+        size: file.size,
       });
-      setGeneratedImagesByStyle({});
-      setRefinedLabelByStyle({});
-      setSplitPercent(50);
-      setMessages([
-        {
-          id: `upload-${Date.now()}`,
-          role: 'assistant',
-          timestamp: formatNowTime(),
-          text: `Your room photo ("${cleanName || 'Uploaded Space'}") is loaded in the studio. Choose any style in the carousel below and click Generate Makeover to transform your space, or tell me what you'd like to change first.`,
-        },
-      ]);
-    } catch (err) {
-      setVisualError(err instanceof Error ? err.message : 'Could not read the uploaded photo.');
-    }
-  }, []);
+      if (!validation.valid) {
+        setVisualError(validation.error ?? 'Unsupported image file.');
+        return;
+      }
+
+      try {
+        const encoded = await fileToBase64(file);
+        const cleanName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+        const displayLabel = cleanName || 'Uploaded Space';
+        setOriginalRoom({
+          url: encoded.dataUrl,
+          base64: encoded.base64,
+          mimeType: encoded.mimeType,
+          label: displayLabel,
+          isDemo: false,
+        });
+        setGeneratedImagesByStyle({});
+        setRefinedLabelByStyle({});
+        setSplitPercent(50);
+        setMessages([
+          {
+            id: `upload-${Date.now()}`,
+            role: 'assistant',
+            timestamp: formatNowTime(),
+            text: `Your room photo ("${displayLabel}") is loaded in the studio. Choose any style in the carousel below and click Generate Makeover to transform your space, or tell me what you'd like to change first.`,
+          },
+        ]);
+        showToast(`Loaded "${displayLabel}". Select a style to generate your makeover.`);
+      } catch (err) {
+        setVisualError(err instanceof Error ? err.message : 'Could not read the uploaded photo.');
+      }
+    },
+    [showToast]
+  );
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -147,12 +201,20 @@ export default function App() {
     setVisualError(null);
     setChatError(null);
     setMessages(createInitialMessages(DESIGN_STYLES[0].name));
-  }, []);
+    showToast('Restored the sample living room studio.');
+  }, [showToast]);
 
-  const handleSelectStyle = useCallback((styleId: string) => {
-    setActiveStyleId(styleId);
-    setVisualError(null);
-  }, []);
+  const handleSelectStyle = useCallback(
+    (styleId: string) => {
+      const targetStyle = DESIGN_STYLES.find((s) => s.id === styleId);
+      setActiveStyleId(styleId);
+      setVisualError(null);
+      if (targetStyle) {
+        showToast(`Switched preview to ${targetStyle.name}.`);
+      }
+    },
+    [showToast]
+  );
 
   const handleGenerateStyle = useCallback(
     async (styleId: string, customNote?: string) => {
@@ -202,6 +264,7 @@ export default function App() {
             [style.id]: customNote ? `${style.name} · Custom` : style.name,
           }));
           setSplitPercent(50);
+          showToast(`Rendered ${style.name} makeover.`);
         }
       } catch (err) {
         setVisualError(
@@ -214,7 +277,7 @@ export default function App() {
         setGeneratingLabel(undefined);
       }
     },
-    [originalRoom, resolution]
+    [originalRoom, resolution, showToast]
   );
 
   const handleSendMessage = useCallback(
@@ -292,6 +355,11 @@ export default function App() {
               ...(prev[activeStyle.id] ?? []),
             ],
           }));
+          showToast(
+            `Added ${data.shoppableItems.length} new shoppable ${
+              data.shoppableItems.length === 1 ? 'pick' : 'picks'
+            } to your index.`
+          );
         }
 
         const assistantMessage: ChatMessage = {
@@ -330,21 +398,26 @@ export default function App() {
       messages,
       originalRoom.url,
       resolution,
+      showToast,
     ]
   );
 
-  const handleAskAboutItem = useCallback((item: ShoppableItem) => {
-    setChatInput(
-      `How would the ${item.name} (${item.material}) fit this room's proportions, and can you suggest one alternative around a similar budget?`
-    );
-    const inputEl = document.getElementById('consultant-prompt-input');
-    inputEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    inputEl?.focus();
-  }, []);
+  const handleAskAboutItem = useCallback(
+    (item: ShoppableItem) => {
+      setChatInput(
+        `How would the ${item.name} (${item.material}) fit this room's proportions, and can you suggest one alternative around a similar budget?`
+      );
+      showToast(`Prepared consultation prompt for ${item.name}.`);
+      const inputEl = document.getElementById('consultant-prompt-input');
+      inputEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      inputEl?.focus();
+    },
+    [showToast]
+  );
 
   return (
     <div
-      className="relative min-h-screen text-[#141715]"
+      className="relative min-h-screen bg-[#F2D7EE] text-[#0E103D]"
       onDragOver={(e) => {
         e.preventDefault();
         setIsDraggingFile(true);
@@ -356,7 +429,12 @@ export default function App() {
       }}
       onDrop={handleDropFile}
     >
-      <AmbientBackdrop />
+      <a
+        href="#studio"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-[#0E103D] focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-[#F2D7EE]"
+      >
+        Skip to studio visualizer
+      </a>
 
       <input
         ref={fileInputRef}
@@ -367,35 +445,41 @@ export default function App() {
         className="sr-only"
       />
 
-      <TopBar onTriggerUpload={triggerFilePicker} />
+      <TopBar
+        onTriggerUpload={triggerFilePicker}
+        activeSection={activeSection}
+        onSelectSection={setActiveSection}
+      />
 
+      {/* High-Contrast File Drop Overlay */}
       {isDraggingFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-6 backdrop-blur-md">
-          <div className="rounded-[28px] border border-white/40 bg-[#141D18]/80 px-10 py-8 text-center text-white shadow-2xl backdrop-blur-xl">
-            <p className="font-editorial text-3xl font-medium">Drop your room photo here</p>
-            <p className="mt-2 text-sm text-white/85">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0E103D]/75 p-6 backdrop-blur-sm">
+          <div className="max-w-md rounded-2xl border-2 border-dashed border-[#F2D7EE] bg-[#0E103D] px-10 py-8 text-center text-[#F2D7EE] shadow-2xl">
+            <Upload className="mx-auto h-8 w-8 text-[#F2D7EE]" aria-hidden="true" />
+            <p className="mt-3 text-2xl font-bold tracking-[-0.02em]">Drop your room photo here</p>
+            <p className="mt-2 text-sm text-[#D3BCC0]">
               Supports JPG, PNG, and WebP photographs up to 12 MB
             </p>
           </div>
         </div>
       )}
 
-      <main className="mx-auto max-w-[1280px] space-y-10 px-5 pb-8 pt-8 sm:px-8 sm:pt-9">
+      <main className="mx-auto max-w-[1280px] space-y-12 px-4 pb-8 pt-6 sm:px-8 sm:pt-8">
         {/* Studio Hero & Primary Focal Anchor: Interactive Before / After Visualizer */}
-        <section id="studio" aria-labelledby="studio-heading" className="space-y-5">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div className="max-w-2xl space-y-1.5">
-              <p className="text-xs font-medium text-[#464D49]">
-                Interactive Architectural Makeover · Before &amp; After Visualization
+        <section id="studio" aria-labelledby="studio-heading" className="scroll-mt-20 space-y-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div className="max-w-[65ch] space-y-2">
+              <p className="text-xs font-semibold tracking-wide uppercase text-[#69306D]">
+                Interactive Architectural Makeover · Before &amp; After Visualizer
               </p>
               <h1
                 id="studio-heading"
-                className="font-editorial text-[clamp(2rem,3.4vw,3rem)] leading-[1.08] font-medium tracking-tight text-[#141715] text-balance"
+                className="text-[clamp(1.85rem,3.2vw,2.75rem)] leading-[1.12] font-bold tracking-[-0.025em] text-[#0E103D] text-balance"
               >
                 Reimagine your room before moving a single chair.
               </h1>
             </div>
-            <p className="max-w-sm text-sm leading-relaxed text-[#464D49]">
+            <p className="max-w-[42ch] text-sm leading-relaxed text-[#2E234D]">
               Drag across the frame to compare your original space against curated interior styles, then refine every detail with your consultant below.
             </p>
           </div>
@@ -413,6 +497,7 @@ export default function App() {
             onGenerateCurrentStyle={() => handleGenerateStyle(activeStyle.id)}
             onTriggerUpload={triggerFilePicker}
             onResetDemo={handleResetDemo}
+            onDownloadComplete={() => showToast(`Downloaded ${activeReimaginedLabel} room render.`)}
             errorMessage={visualError}
             onDismissError={() => setVisualError(null)}
           />
@@ -456,27 +541,66 @@ export default function App() {
         </div>
       </main>
 
-      <footer className="px-5 pb-8 pt-6 sm:px-8">
-        <div className="liquid-glass-dock mx-auto flex max-w-[1280px] flex-col items-start justify-between gap-4 rounded-[24px] px-6 py-5 text-xs text-[#464D49] sm:flex-row sm:items-center">
-          <span className="font-editorial text-lg font-semibold text-[#141715]">
+      <footer className="px-4 pb-24 pt-6 sm:px-8 md:pb-10">
+        <div className="atelier-surface mx-auto flex max-w-[1280px] flex-col items-start justify-between gap-4 rounded-2xl px-6 py-5 text-xs sm:flex-row sm:items-center">
+          <span className="text-base font-bold tracking-[-0.02em] text-[#0E103D]">
             Atelier Room
           </span>
-          <div className="flex flex-wrap items-center gap-6">
-            <a href="#studio" className="hover:text-[#141715] hover:underline underline-offset-4">
+          <nav aria-label="Footer navigation" className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <a
+              href="#studio"
+              onClick={() => setActiveSection('studio')}
+              className="inline-flex min-h-[36px] items-center font-semibold text-[#2E234D] underline-offset-4 hover:text-[#69306D] hover:underline"
+            >
               Studio Visualizer
             </a>
-            <a href="#styles" className="hover:text-[#141715] hover:underline underline-offset-4">
+            <a
+              href="#styles"
+              onClick={() => setActiveSection('styles')}
+              className="inline-flex min-h-[36px] items-center font-semibold text-[#2E234D] underline-offset-4 hover:text-[#69306D] hover:underline"
+            >
               Style Library
             </a>
-            <a href="#consultation" className="hover:text-[#141715] hover:underline underline-offset-4">
+            <a
+              href="#consultation"
+              onClick={() => setActiveSection('consultation')}
+              className="inline-flex min-h-[36px] items-center font-semibold text-[#2E234D] underline-offset-4 hover:text-[#69306D] hover:underline"
+            >
               Design Consultation
             </a>
-            <a href="#shoppable-index" className="hover:text-[#141715] hover:underline underline-offset-4">
+            <a
+              href="#shoppable-index"
+              onClick={() => setActiveSection('shoppable-index')}
+              className="inline-flex min-h-[36px] items-center font-semibold text-[#2E234D] underline-offset-4 hover:text-[#69306D] hover:underline"
+            >
               Shoppable Index
             </a>
-          </div>
+          </nav>
         </div>
       </footer>
+
+      {/* Mobile Thumb-Zone Bottom Navigation Bar */}
+      <MobileBottomNav activeSection={activeSection} onSelectSection={setActiveSection} />
+
+      {/* Non-Blocking Toast Notification Banner */}
+      {toastMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-20 right-4 z-50 flex max-w-sm items-center gap-3 rounded-xl border border-[#A5668B] bg-[#0E103D] px-4 py-3 text-sm font-medium text-[#F2D7EE] shadow-xl md:bottom-6 md:right-6"
+        >
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-[#F2D7EE]" aria-hidden="true" />
+          <span className="leading-snug">{toastMessage}</span>
+          <button
+            type="button"
+            aria-label="Dismiss notification"
+            onClick={() => setToastMessage(null)}
+            className="ml-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#D3BCC0] hover:bg-[#69306D] hover:text-[#F2D7EE] cursor-pointer"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
